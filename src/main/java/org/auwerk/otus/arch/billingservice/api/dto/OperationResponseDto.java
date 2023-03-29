@@ -13,6 +13,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @RegisterForReflection
-public class ExecuteOperationResponseDto {
+public class OperationResponseDto {
     private UUID operationId;
 }
