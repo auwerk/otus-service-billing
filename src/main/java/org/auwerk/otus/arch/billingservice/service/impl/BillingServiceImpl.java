@@ -13,6 +13,7 @@ import org.auwerk.otus.arch.billingservice.domain.Operation;
 import org.auwerk.otus.arch.billingservice.domain.OperationType;
 import org.auwerk.otus.arch.billingservice.exception.AccountAlreadyExistsException;
 import org.auwerk.otus.arch.billingservice.exception.AccountNotFoundException;
+import org.auwerk.otus.arch.billingservice.exception.InsufficentAccountBalanceException;
 import org.auwerk.otus.arch.billingservice.service.BillingService;
 
 import io.quarkus.security.identity.SecurityIdentity;
@@ -62,6 +63,10 @@ public class BillingServiceImpl implements BillingService {
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new AccountNotFoundException())
                 .flatMap(account -> {
+                    final var targetBalance = doCalculations(account.getBalance(), type, amount);
+                    if (targetBalance.compareTo(BigDecimal.ZERO) < 0) {
+                        throw new InsufficentAccountBalanceException();
+                    }
                     final var operation = Operation.builder()
                             .type(type)
                             .accountId(account.getId())
@@ -69,8 +74,7 @@ public class BillingServiceImpl implements BillingService {
                             .comment(comment)
                             .build();
                     return accountDao
-                            .updateBalanceById(pool, account.getId(),
-                                    doCalculations(account.getBalance(), type, amount))
+                            .updateBalanceById(pool, account.getId(), targetBalance)
                             .chain(() -> operationDao.insert(pool, operation));
                 }));
     }

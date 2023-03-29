@@ -9,6 +9,7 @@ import javax.ws.rs.core.Response.Status;
 import org.auwerk.otus.arch.billingservice.api.dto.ExecuteOperationRequestDto;
 import org.auwerk.otus.arch.billingservice.api.dto.ExecuteOperationResponseDto;
 import org.auwerk.otus.arch.billingservice.exception.AccountNotFoundException;
+import org.auwerk.otus.arch.billingservice.exception.InsufficentAccountBalanceException;
 import org.auwerk.otus.arch.billingservice.service.BillingService;
 
 import io.smallrye.mutiny.Uni;
@@ -27,6 +28,8 @@ public class OperationResource {
                 .map(operationId -> Response.ok(new ExecuteOperationResponseDto(operationId)).build())
                 .onFailure(AccountNotFoundException.class)
                 .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
+                .onFailure(InsufficentAccountBalanceException.class)
+                .recoverWithItem(failure -> Response.status(Status.FORBIDDEN).entity(failure.getMessage()).build())
                 .onFailure()
                 .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }

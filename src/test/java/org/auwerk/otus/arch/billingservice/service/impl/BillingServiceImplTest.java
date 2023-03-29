@@ -23,6 +23,7 @@ import org.auwerk.otus.arch.billingservice.domain.Operation;
 import org.auwerk.otus.arch.billingservice.domain.OperationType;
 import org.auwerk.otus.arch.billingservice.exception.AccountAlreadyExistsException;
 import org.auwerk.otus.arch.billingservice.exception.AccountNotFoundException;
+import org.auwerk.otus.arch.billingservice.exception.InsufficentAccountBalanceException;
 import org.auwerk.otus.arch.billingservice.service.BillingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,16 +38,16 @@ import io.vertx.mutiny.sqlclient.SqlConnection;
 
 public class BillingServiceImplTest {
 
-        private static final String USERNAME = "user";
+    private static final String USERNAME = "user";
 
-        private static final UUID ACCOUNT_ID = UUID.randomUUID();
+    private static final UUID ACCOUNT_ID = UUID.randomUUID();
 
-        private final PgPool pool = mock(PgPool.class);
-        private final AccountDao accountDao = mock(AccountDao.class);
-        private final OperationDao operationDao = mock(OperationDao.class);
-        private final SecurityIdentity securityIdentity = mock(SecurityIdentity.class);
-        private final BillingService billingService = new BillingServiceImpl(pool, accountDao, operationDao,
-                        securityIdentity);
+    private final PgPool pool = mock(PgPool.class);
+    private final AccountDao accountDao = mock(AccountDao.class);
+    private final OperationDao operationDao = mock(OperationDao.class);
+    private final SecurityIdentity securityIdentity = mock(SecurityIdentity.class);
+    private final BillingService billingService = new BillingServiceImpl(pool, accountDao, operationDao,
+            securityIdentity);
 
     @BeforeEach
     void mockTransaction() {
@@ -57,12 +58,12 @@ public class BillingServiceImplTest {
         });
     }
 
-        @BeforeEach
-        void mockUser() {
-                var principal = mock(Principal.class);
-                when(principal.getName()).thenReturn(USERNAME);
-                when(securityIdentity.getPrincipal()).thenReturn(principal);
-        }
+    @BeforeEach
+    void mockUser() {
+        var principal = mock(Principal.class);
+        when(principal.getName()).thenReturn(USERNAME);
+        when(securityIdentity.getPrincipal()).thenReturn(principal);
+    }
 
     @Test
     void createUserAccount_success() {
@@ -78,39 +79,39 @@ public class BillingServiceImplTest {
         subscriber.assertItem(ACCOUNT_ID);
     }
 
-        @Test
-        void createUserAccount_alreadyExists() {
-                // given
-                final var account = buildAccount();
+    @Test
+    void createUserAccount_alreadyExists() {
+        // given
+        final var account = buildAccount();
 
-                // when
-                when(accountDao.findByUserName(pool, USERNAME))
-                                .thenReturn(Uni.createFrom().item(account));
-                final var subscriber = billingService.createUserAccount(USERNAME).subscribe()
-                                .withSubscriber(UniAssertSubscriber.create());
+        // when
+        when(accountDao.findByUserName(pool, USERNAME))
+                .thenReturn(Uni.createFrom().item(account));
+        final var subscriber = billingService.createUserAccount(USERNAME).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
 
-                // then
-                subscriber.assertFailedWith(AccountAlreadyExistsException.class);
+        // then
+        subscriber.assertFailedWith(AccountAlreadyExistsException.class);
 
-                verify(accountDao, never()).insert(pool, USERNAME);
-        }
+        verify(accountDao, never()).insert(pool, USERNAME);
+    }
 
-        @Test
-        void getUserAccount_success() {
-                // given
-                final var account = buildAccount();
+    @Test
+    void getUserAccount_success() {
+        // given
+        final var account = buildAccount();
 
-                // when
-                when(accountDao.findByUserName(pool, USERNAME))
-                                .thenReturn(Uni.createFrom().item(account));
-                final var subscriber = billingService.getUserAccount(false).subscribe()
-                                .withSubscriber(UniAssertSubscriber.create());
+        // when
+        when(accountDao.findByUserName(pool, USERNAME))
+                .thenReturn(Uni.createFrom().item(account));
+        final var subscriber = billingService.getUserAccount(false).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
 
-                // then
-                subscriber.assertItem(account);
+        // then
+        subscriber.assertItem(account);
 
-                verify(operationDao, never()).findByAccountId(pool, ACCOUNT_ID);
-        }
+        verify(operationDao, never()).findByAccountId(pool, ACCOUNT_ID);
+    }
 
     @Test
     void getUserAccount_accountNotFound() {
@@ -126,28 +127,28 @@ public class BillingServiceImplTest {
         verify(operationDao, never()).findByAccountId(pool, ACCOUNT_ID);
     }
 
-        @Test
-        void getUserAccountWithOperations_success() {
-                // given
-                final var account = buildAccount();
-                final var operations = List.of(
-                                Operation.builder().build(),
-                                Operation.builder().build(),
-                                Operation.builder().build());
+    @Test
+    void getUserAccountWithOperations_success() {
+        // given
+        final var account = buildAccount();
+        final var operations = List.of(
+                Operation.builder().build(),
+                Operation.builder().build(),
+                Operation.builder().build());
 
-                // when
-                when(accountDao.findByUserName(pool, USERNAME))
-                                .thenReturn(Uni.createFrom().item(account));
-                when(operationDao.findByAccountId(pool, ACCOUNT_ID))
-                                .thenReturn(Uni.createFrom().item(operations));
-                final var subscriber = billingService.getUserAccount(true).subscribe()
-                                .withSubscriber(UniAssertSubscriber.create());
+        // when
+        when(accountDao.findByUserName(pool, USERNAME))
+                .thenReturn(Uni.createFrom().item(account));
+        when(operationDao.findByAccountId(pool, ACCOUNT_ID))
+                .thenReturn(Uni.createFrom().item(operations));
+        final var subscriber = billingService.getUserAccount(true).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
 
-                // then
-                subscriber.assertItem(account);
+        // then
+        subscriber.assertItem(account);
 
-                verify(operationDao, times(1)).findByAccountId(pool, ACCOUNT_ID);
-        }
+        verify(operationDao, times(1)).findByAccountId(pool, ACCOUNT_ID);
+    }
 
     @Test
     void getUserAccountWithOperations_accountNotFound() {
@@ -161,63 +162,85 @@ public class BillingServiceImplTest {
         subscriber.assertFailedWith(AccountNotFoundException.class);
     }
 
-        @ParameterizedTest
-        @EnumSource(OperationType.class)
-        void executeOperation_success(OperationType operationType) {
-                // given
-                final var account = buildAccount();
-                final var amount = BigDecimal.TEN;
-                final var comment = "test operation";
-                final var targetBalance = switch (operationType) {
-                        case WITHDRAW -> account.getBalance().subtract(amount);
-                        case CANCEL_WITHDRAW -> account.getBalance().add(amount);
-                };
+    @ParameterizedTest
+    @EnumSource(OperationType.class)
+    void executeOperation_success(OperationType operationType) {
+        // given
+        final var account = buildAccount();
+        final var amount = BigDecimal.TEN;
+        final var comment = "test operation";
+        final var targetBalance = switch (operationType) {
+            case WITHDRAW -> account.getBalance().subtract(amount);
+            case CANCEL_WITHDRAW -> account.getBalance().add(amount);
+        };
 
-                // when
-                when(accountDao.findByUserName(pool, USERNAME))
-                                .thenReturn(Uni.createFrom().item(account));
-                final var subscriber = billingService.executeOperation(operationType, amount, comment)
-                                .subscribe()
-                                .withSubscriber(UniAssertSubscriber.create());
+        // when
+        when(accountDao.findByUserName(pool, USERNAME))
+                .thenReturn(Uni.createFrom().item(account));
+        final var subscriber = billingService.executeOperation(operationType, amount, comment)
+                .subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
 
-                // then
-                subscriber.assertCompleted();
+        // then
+        subscriber.assertCompleted();
 
-                verify(accountDao, times(1))
-                                .updateBalanceById(pool, account.getId(), targetBalance);
-                verify(operationDao, times(1))
-                                .insert(eq(pool), argThat(op -> operationType.equals(op.getType())
-                                                && account.getId().equals(op.getAccountId())
-                                                && amount.equals(op.getAmount()) && comment.equals(op.getComment())));
-        }
+        verify(accountDao, times(1))
+                .updateBalanceById(pool, account.getId(), targetBalance);
+        verify(operationDao, times(1))
+                .insert(eq(pool), argThat(op -> operationType.equals(op.getType())
+                        && account.getId().equals(op.getAccountId())
+                        && amount.equals(op.getAmount()) && comment.equals(op.getComment())));
+    }
 
-        @ParameterizedTest
-        @EnumSource(OperationType.class)
-        void executeOperation_accountNotFound(OperationType operationType) {
-                // given
-                final var account = buildAccount();
-                final var amount = BigDecimal.TEN;
+    @ParameterizedTest
+    @EnumSource(OperationType.class)
+    void executeOperation_accountNotFound(OperationType operationType) {
+        // given
+        final var account = buildAccount();
+        final var amount = BigDecimal.TEN;
 
-                // when
-                when(accountDao.findByUserName(pool, USERNAME))
-                                .thenReturn(Uni.createFrom().failure(new NoSuchElementException()));
-                final var subscriber = billingService.executeOperation(operationType, amount, "")
-                                .subscribe()
-                                .withSubscriber(UniAssertSubscriber.create());
+        // when
+        when(accountDao.findByUserName(pool, USERNAME))
+                .thenReturn(Uni.createFrom().failure(new NoSuchElementException()));
+        final var subscriber = billingService.executeOperation(operationType, amount, "")
+                .subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
 
-                // then
-                subscriber.assertFailedWith(AccountNotFoundException.class);
+        // then
+        subscriber.assertFailedWith(AccountNotFoundException.class);
 
-                verify(accountDao, never())
-                                .updateBalanceById(eq(pool), eq(account.getId()), any(BigDecimal.class));
-                verify(operationDao, never())
-                                .insert(eq(pool), any(Operation.class));
-        }
+        verify(accountDao, never())
+                .updateBalanceById(eq(pool), eq(account.getId()), any(BigDecimal.class));
+        verify(operationDao, never())
+                .insert(eq(pool), any(Operation.class));
+    }
 
-        private static Account buildAccount() {
-                return Account.builder()
-                                .id(ACCOUNT_ID)
-                                .balance(BigDecimal.TEN)
-                                .build();
-        }
+    @Test
+    void executeWithdrawal_insufficentAccountBalance() {
+        // given
+        final var account = buildAccount();
+        final var amount = account.getBalance().add(BigDecimal.TEN);
+
+        // when
+        when(accountDao.findByUserName(pool, USERNAME))
+                .thenReturn(Uni.createFrom().item(account));
+        final var subscriber = billingService.executeOperation(OperationType.WITHDRAW, amount, "")
+                .subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        subscriber.assertFailedWith(InsufficentAccountBalanceException.class);
+
+        verify(accountDao, never())
+                .updateBalanceById(eq(pool), eq(account.getId()), any(BigDecimal.class));
+        verify(operationDao, never())
+                .insert(eq(pool), any(Operation.class));
+    }
+
+    private static Account buildAccount() {
+        return Account.builder()
+                .id(ACCOUNT_ID)
+                .balance(BigDecimal.TEN)
+                .build();
+    }
 }
