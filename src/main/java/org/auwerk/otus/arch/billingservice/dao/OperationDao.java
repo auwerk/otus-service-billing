@@ -10,6 +10,8 @@ import io.vertx.mutiny.pgclient.PgPool;
 
 public interface OperationDao {
 
+    Uni<Operation> findById(PgPool pool, UUID id);
+
     Uni<List<Operation>> findByAccountId(PgPool pool, UUID accountId);
 
     Uni<UUID> insert(PgPool pool, Operation operation);

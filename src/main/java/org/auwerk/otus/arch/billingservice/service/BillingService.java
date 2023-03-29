@@ -35,4 +35,13 @@ public interface BillingService {
      * @return уникальный идентификатор операции
      */
     Uni<UUID> executeOperation(OperationType type, BigDecimal amount, String comment);
+
+    /**
+     * Отмена операции
+     * 
+     * @param operationId уникальный идентификатор операции
+     * @param comment     комментарий к отмене операции
+     * @return уникальный идентификатор зеркальной операции
+     */
+    Uni<UUID> cancelOperation(UUID operationId, String comment);
 }

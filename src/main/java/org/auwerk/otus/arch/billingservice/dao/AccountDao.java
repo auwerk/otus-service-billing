@@ -9,6 +9,8 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.pgclient.PgPool;
 
 public interface AccountDao {
+
+    Uni<Account> findById(PgPool pool, UUID id);
     
     Uni<Account> findByUserName(PgPool pool, String userName);
 

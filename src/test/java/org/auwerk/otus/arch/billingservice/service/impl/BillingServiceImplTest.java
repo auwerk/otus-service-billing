@@ -1,5 +1,6 @@
 package org.auwerk.otus.arch.billingservice.service.impl;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,6 +25,8 @@ import org.auwerk.otus.arch.billingservice.domain.OperationType;
 import org.auwerk.otus.arch.billingservice.exception.AccountAlreadyExistsException;
 import org.auwerk.otus.arch.billingservice.exception.AccountNotFoundException;
 import org.auwerk.otus.arch.billingservice.exception.InsufficentAccountBalanceException;
+import org.auwerk.otus.arch.billingservice.exception.OperationExecutedByDifferentUserException;
+import org.auwerk.otus.arch.billingservice.exception.OperationNotFoundException;
 import org.auwerk.otus.arch.billingservice.service.BillingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -170,8 +173,8 @@ public class BillingServiceImplTest {
         final var amount = BigDecimal.TEN;
         final var comment = "test operation";
         final var targetBalance = switch (operationType) {
-            case WITHDRAW, CANCEL_CREDIT -> account.getBalance().subtract(amount);
-            case CREDIT, CANCEL_WITHDRAW -> account.getBalance().add(amount);
+            case WITHDRAW -> account.getBalance().subtract(amount);
+            case CREDIT -> account.getBalance().add(amount);
         };
 
         // when
@@ -215,6 +218,124 @@ public class BillingServiceImplTest {
                 .insert(eq(pool), any(Operation.class));
     }
 
+    @ParameterizedTest
+    @EnumSource(OperationType.class)
+    void cancelOperation_success(OperationType operationType) {
+        // given
+        final var account = buildAccount();
+        final var operation = buildOperation(operationType);
+        final var comment = "cancel operation comment";
+        final var targetBalance = switch (operationType) { // REVERSE! It's OK here
+            case WITHDRAW -> account.getBalance().add(operation.getAmount());
+            case CREDIT -> account.getBalance().subtract(operation.getAmount());
+        };
+        final var targetOperationType = switch (operationType) {
+            case CREDIT -> OperationType.WITHDRAW;
+            case WITHDRAW -> OperationType.CREDIT;
+        };
+
+        // when
+        when(operationDao.findById(pool, operation.getId()))
+                .thenReturn(Uni.createFrom().item(operation));
+        when(accountDao.findById(pool, account.getId()))
+                .thenReturn(Uni.createFrom().item(account));
+        final var subscriber = billingService.cancelOperation(operation.getId(), comment)
+                .subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        subscriber.assertCompleted();
+
+        verify(accountDao, times(1))
+                .updateBalanceById(pool, account.getId(), targetBalance);
+        verify(operationDao, times(1))
+                .insert(eq(pool), argThat(op -> targetOperationType.equals(op.getType())
+                        && account.getId().equals(op.getAccountId())
+                        && operation.getAmount().equals(op.getAmount())
+                        && comment.equals(op.getComment())));
+    }
+
+    @ParameterizedTest
+    @EnumSource(OperationType.class)
+    void cancelOperation_operationNotFound(OperationType operationType) {
+        // given
+        final var operationId = UUID.randomUUID();
+
+        // when
+        when(operationDao.findById(pool, operationId))
+                .thenReturn(Uni.createFrom().failure(new NoSuchElementException()));
+        final var subscriber = billingService.cancelOperation(operationId, "")
+                .subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (OperationNotFoundException) subscriber
+                .assertFailedWith(OperationNotFoundException.class)
+                .getFailure();
+        assertEquals(operationId, failure.getOperationId());
+
+        verify(accountDao, never())
+                .updateBalanceById(eq(pool), any(UUID.class), any(BigDecimal.class));
+        verify(operationDao, never())
+                .insert(eq(pool), any(Operation.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(OperationType.class)
+    void cancelOperation_accountNotFound(OperationType operationType) {
+        // given
+        final var operation = buildOperation(operationType);
+
+        // when
+        when(operationDao.findById(pool, operation.getId()))
+                .thenReturn(Uni.createFrom().item(operation));
+        when(accountDao.findById(pool, ACCOUNT_ID))
+                .thenReturn(Uni.createFrom().failure(new NoSuchElementException()));
+        final var subscriber = billingService.cancelOperation(operation.getId(), "")
+                .subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (AccountNotFoundException) subscriber
+                .assertFailedWith(AccountNotFoundException.class)
+                .getFailure();
+        assertEquals(ACCOUNT_ID, failure.getAccountId());
+
+        verify(accountDao, never())
+                .updateBalanceById(eq(pool), any(UUID.class), any(BigDecimal.class));
+        verify(operationDao, never())
+                .insert(eq(pool), any(Operation.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(OperationType.class)
+    void cancelOperation_operationExecutedByDifferentUser(OperationType operationType) {
+        // given
+        final var account = buildAccount();
+        final var operation = buildOperation(operationType);
+
+        // when
+        account.setUserName("other-user");
+        when(operationDao.findById(pool, operation.getId()))
+                .thenReturn(Uni.createFrom().item(operation));
+        when(accountDao.findById(pool, account.getId()))
+                .thenReturn(Uni.createFrom().item(account));
+        final var subscriber = billingService.cancelOperation(operation.getId(), "")
+                .subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (OperationExecutedByDifferentUserException) subscriber
+                .assertFailedWith(OperationExecutedByDifferentUserException.class)
+                .getFailure();
+        assertEquals(operation.getId(), failure.getOperationId());
+
+        verify(accountDao, never())
+                .updateBalanceById(eq(pool), any(UUID.class), any(BigDecimal.class));
+        verify(operationDao, never())
+                .insert(eq(pool), any(Operation.class));
+    }
+
     @Test
     void executeWithdrawal_insufficentAccountBalance() {
         // given
@@ -237,9 +358,19 @@ public class BillingServiceImplTest {
                 .insert(eq(pool), any(Operation.class));
     }
 
+    private static Operation buildOperation(OperationType operationType) {
+        return Operation.builder()
+                .id(UUID.randomUUID())
+                .accountId(ACCOUNT_ID)
+                .type(operationType)
+                .amount(BigDecimal.TEN)
+                .build();
+    }
+
     private static Account buildAccount() {
         return Account.builder()
                 .id(ACCOUNT_ID)
+                .userName(USERNAME)
                 .balance(BigDecimal.TEN)
                 .build();
     }

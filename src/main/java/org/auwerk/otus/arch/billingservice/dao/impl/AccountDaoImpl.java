@@ -20,6 +20,19 @@ import io.vertx.mutiny.sqlclient.Tuple;
 public class AccountDaoImpl implements AccountDao {
 
     @Override
+    public Uni<Account> findById(PgPool pool, UUID id) {
+        return pool.preparedQuery("SELECT * FROM accounts WHERE id=$1")
+                .execute(Tuple.of(id))
+                .map(rowSet -> {
+                    final var rowSetIterator = rowSet.iterator();
+                    if (!rowSetIterator.hasNext()) {
+                        throw new NoSuchElementException("account not found, id=" + id);
+                    }
+                    return mapRow(rowSetIterator.next());
+                });
+    }
+
+    @Override
     public Uni<Account> findByUserName(PgPool pool, String userName) {
         return pool.preparedQuery("SELECT * FROM accounts WHERE username=$1")
                 .execute(Tuple.of(userName))

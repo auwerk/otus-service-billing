@@ -14,6 +14,8 @@ import org.auwerk.otus.arch.billingservice.domain.OperationType;
 import org.auwerk.otus.arch.billingservice.exception.AccountAlreadyExistsException;
 import org.auwerk.otus.arch.billingservice.exception.AccountNotFoundException;
 import org.auwerk.otus.arch.billingservice.exception.InsufficentAccountBalanceException;
+import org.auwerk.otus.arch.billingservice.exception.OperationExecutedByDifferentUserException;
+import org.auwerk.otus.arch.billingservice.exception.OperationNotFoundException;
 import org.auwerk.otus.arch.billingservice.service.BillingService;
 
 import io.quarkus.security.identity.SecurityIdentity;
@@ -62,30 +64,51 @@ public class BillingServiceImpl implements BillingService {
         return pool.withTransaction(conn -> accountDao.findByUserName(pool, getUserName())
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new AccountNotFoundException())
-                .flatMap(account -> {
-                    final var targetBalance = doCalculations(account.getBalance(), type, amount);
-                    if (targetBalance.compareTo(BigDecimal.ZERO) < 0) {
-                        throw new InsufficentAccountBalanceException();
-                    }
-                    final var operation = Operation.builder()
-                            .type(type)
-                            .accountId(account.getId())
-                            .amount(amount)
-                            .comment(comment)
-                            .build();
-                    return accountDao
-                            .updateBalanceById(pool, account.getId(), targetBalance)
-                            .chain(() -> operationDao.insert(pool, operation));
-                }));
+                .flatMap(account -> doExecuteOperation(account, type, amount, comment)));
+    }
+
+    @Override
+    public Uni<UUID> cancelOperation(UUID operationId, String comment) {
+        return pool.withTransaction(conn -> operationDao.findById(pool, operationId)
+                .flatMap(operation -> accountDao.findById(pool, operation.getAccountId())
+                        .flatMap(account -> {
+                            if (!getUserName().equals(account.getUserName())) {
+                                throw new OperationExecutedByDifferentUserException(operation.getId());
+                            }
+                            return switch (operation.getType()) {
+                                case CREDIT -> doExecuteOperation(account, OperationType.WITHDRAW,
+                                        operation.getAmount(), comment);
+                                case WITHDRAW ->
+                                    doExecuteOperation(account, OperationType.CREDIT, operation.getAmount(), comment);
+                            };
+                        })
+                        .onFailure(NoSuchElementException.class)
+                        .transform(ex -> new AccountNotFoundException(operation.getAccountId())))
+                .onFailure(NoSuchElementException.class)
+                .transform(ex -> new OperationNotFoundException(operationId)));
+    }
+
+    private Uni<UUID> doExecuteOperation(Account account, OperationType type, BigDecimal amount, String comment) {
+        final var targetBalance = doCalculations(account.getBalance(), type, amount);
+        if (targetBalance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new InsufficentAccountBalanceException();
+        }
+        final var operation = Operation.builder()
+                .type(type)
+                .accountId(account.getId())
+                .amount(amount)
+                .comment(comment)
+                .build();
+        return accountDao
+                .updateBalanceById(pool, account.getId(), targetBalance)
+                .chain(() -> operationDao.insert(pool, operation));
     }
 
     private BigDecimal doCalculations(BigDecimal balance, OperationType operationType, BigDecimal amount) {
         switch (operationType) {
             case WITHDRAW:
-            case CANCEL_CREDIT:
                 return balance.subtract(amount);
             case CREDIT:
-            case CANCEL_WITHDRAW:
                 return balance.add(amount);
             default:
                 return balance;
