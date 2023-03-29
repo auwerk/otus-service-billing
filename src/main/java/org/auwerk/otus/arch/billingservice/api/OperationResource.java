@@ -16,13 +16,13 @@ import io.smallrye.mutiny.Uni;
 import lombok.RequiredArgsConstructor;
 
 @Path("/operation")
+@RolesAllowed("${otus.role.customer}")
 @RequiredArgsConstructor
 public class OperationResource {
 
     private final BillingService billingService;
 
     @POST
-    @RolesAllowed("${otus.role.customer}")
     public Uni<Response> executeOperation(ExecuteOperationRequestDto request) {
         return billingService.executeOperation(request.getType(), request.getAmount(), request.getComment())
                 .map(operationId -> Response.ok(new ExecuteOperationResponseDto(operationId)).build())

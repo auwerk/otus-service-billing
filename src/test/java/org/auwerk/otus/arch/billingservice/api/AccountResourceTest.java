@@ -78,7 +78,6 @@ public class AccountResourceTest extends AbstractAuthenticatedResourceTest {
                 .thenReturn(Uni.createFrom().item(accountId));
 
         RestAssured.given()
-                .auth().oauth2(getAccessToken(USERNAME))
                 .contentType(ContentType.JSON)
                 .body(request)
                 .post()
@@ -95,7 +94,6 @@ public class AccountResourceTest extends AbstractAuthenticatedResourceTest {
                 .thenReturn(Uni.createFrom().failure(new AccountAlreadyExistsException()));
 
         RestAssured.given()
-                .auth().oauth2(getAccessToken(USERNAME))
                 .contentType(ContentType.JSON)
                 .body(request)
                 .post()
@@ -113,7 +111,6 @@ public class AccountResourceTest extends AbstractAuthenticatedResourceTest {
                 .thenReturn(Uni.createFrom().failure(new RuntimeException(errorMessage)));
 
         RestAssured.given()
-                .auth().oauth2(getAccessToken(USERNAME))
                 .contentType(ContentType.JSON)
                 .body(request)
                 .post()
