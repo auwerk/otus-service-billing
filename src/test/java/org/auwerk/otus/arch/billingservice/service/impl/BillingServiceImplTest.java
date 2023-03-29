@@ -170,8 +170,8 @@ public class BillingServiceImplTest {
         final var amount = BigDecimal.TEN;
         final var comment = "test operation";
         final var targetBalance = switch (operationType) {
-            case WITHDRAW -> account.getBalance().subtract(amount);
-            case CANCEL_WITHDRAW -> account.getBalance().add(amount);
+            case WITHDRAW, CANCEL_CREDIT -> account.getBalance().subtract(amount);
+            case CREDIT, CANCEL_WITHDRAW -> account.getBalance().add(amount);
         };
 
         // when

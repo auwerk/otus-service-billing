@@ -82,7 +82,9 @@ public class BillingServiceImpl implements BillingService {
     private BigDecimal doCalculations(BigDecimal balance, OperationType operationType, BigDecimal amount) {
         switch (operationType) {
             case WITHDRAW:
+            case CANCEL_CREDIT:
                 return balance.subtract(amount);
+            case CREDIT:
             case CANCEL_WITHDRAW:
                 return balance.add(amount);
             default:
