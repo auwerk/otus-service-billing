@@ -4,4 +4,42 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.19.xsd">
 
+    <changeSet id="01-create-accounts-table" author="auwerk">
+        <createTable tableName="accounts" remarks="User billing accounts">
+            <column name="id" type="uuid" remarks="Account unique ID">
+                <constraints primaryKey="true" />
+            </column>
+            <column name="username" type="varchar(255)" remarks="User owner name">
+                <constraints nullable="false" />
+            </column>
+            <column name="balance" type="decimal" remarks="Account balance">
+                <constraints nullable="false" />
+            </column>
+            <column name="created_at" type="datetime" remarks="Account creation date/time">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="02-create-operations-table" author="auwerk">
+        <createTable tableName="operations" remarks="Account operations">
+            <column name="id" type="uuid" remarks="Operation unique ID">
+                <constraints primaryKey="true" />
+            </column>
+            <column name="account_id" type="uuid" remarks="Account unique ID">
+                <constraints nullable="false" foreignKeyName="fk_account_operation_account"
+                    references="accounts(id)" />
+            </column>
+            <column name="type_code" type="varchar(16)">
+                <constraints nullable="false" />
+            </column>
+            <column name="amount" type="decimal" remarks="Operation amount">
+                <constraints nullable="false" />
+            </column>
+            <column name="created_at" type="datetime" remarks="Operation creation date/time">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+    </changeSet>
+
 </databaseChangeLog>
