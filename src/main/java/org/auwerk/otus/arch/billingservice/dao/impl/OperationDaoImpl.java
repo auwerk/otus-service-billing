@@ -37,7 +37,7 @@ public class OperationDaoImpl implements OperationDao {
     @Override
     public Uni<UUID> insert(PgPool pool, Operation operation) {
         return pool.preparedQuery(
-                "INSERT INTO operations(id, account_id, type, amount, comment, created_at) VALUES($1, $2, $3, $4, $5) RETURNING id")
+                "INSERT INTO operations(id, account_id, type, amount, comment, created_at) VALUES($1, $2, $3, $4, $5, $6) RETURNING id")
                 .execute(Tuple.of(UUID.randomUUID(), operation.getAccountId(), operation.getType().name(),
                         operation.getAmount(), operation.getComment(), LocalDateTime.now()))
                 .map(rowSet -> {
