@@ -11,11 +11,12 @@ import io.smallrye.mutiny.Uni;
 public interface BillingService {
 
     /**
-     * Создание лицевого счёта для авторизованного пользователя
+     * Создание лицевого счёта для пользователя
      * 
+     * @param userName имя пользователя, для которого создается счёт
      * @return уникальный идентификатор созданного счёта
      */
-    Uni<UUID> createUserAccount();
+    Uni<UUID> createUserAccount(String userName);
 
     /**
      * Получение информации о счёте авторизованного пользователя
@@ -28,9 +29,10 @@ public interface BillingService {
     /**
      * Исполнение операции со счётом авторизованного пользователя
      * 
-     * @param type   тип операции
-     * @param amount количество
+     * @param type    тип операции
+     * @param amount  количество
+     * @param comment комментарий к операции
      * @return уникальный идентификатор операции
      */
-    Uni<UUID> executeOperation(OperationType type, BigDecimal amount);
+    Uni<UUID> executeOperation(OperationType type, BigDecimal amount, String comment);
 }

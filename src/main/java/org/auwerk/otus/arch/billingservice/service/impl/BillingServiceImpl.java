@@ -30,14 +30,14 @@ public class BillingServiceImpl implements BillingService {
     private final SecurityIdentity securityIdentity;
 
     @Override
-    public Uni<UUID> createUserAccount() {
-        return accountDao.findByUserName(pool, getUserName())
+    public Uni<UUID> createUserAccount(String userName) {
+        return accountDao.findByUserName(pool, userName)
                 .onItemOrFailure()
                 .transformToUni((account, failure) -> {
                     if (account != null) {
                         throw new AccountAlreadyExistsException();
                     }
-                    return accountDao.insert(pool, getUserName());
+                    return accountDao.insert(pool, userName);
                 });
     }
 
@@ -57,7 +57,7 @@ public class BillingServiceImpl implements BillingService {
     }
 
     @Override
-    public Uni<UUID> executeOperation(OperationType type, BigDecimal amount) {
+    public Uni<UUID> executeOperation(OperationType type, BigDecimal amount, String comment) {
         return pool.withTransaction(conn -> accountDao.findByUserName(pool, getUserName())
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new AccountNotFoundException())
@@ -66,6 +66,7 @@ public class BillingServiceImpl implements BillingService {
                             .type(type)
                             .accountId(account.getId())
                             .amount(amount)
+                            .comment(comment)
                             .build();
                     return accountDao
                             .updateBalanceById(pool, account.getId(),

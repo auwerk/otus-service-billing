@@ -36,6 +36,7 @@
             <column name="amount" type="decimal" remarks="Operation amount">
                 <constraints nullable="false" />
             </column>
+            <column name="comment" type="text" remarks="Operation comment" />
             <column name="created_at" type="datetime" remarks="Operation creation date/time">
                 <constraints nullable="false" />
             </column>

@@ -14,5 +14,6 @@ public class Operation {
     private UUID accountId;
     private OperationType type;
     private BigDecimal amount;
+    private String comment;
     private LocalDateTime createdAt;
 }
