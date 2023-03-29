@@ -30,7 +30,7 @@
                 <constraints nullable="false" foreignKeyName="fk_account_operation_account"
                     references="accounts(id)" />
             </column>
-            <column name="type_code" type="varchar(16)">
+            <column name="type" type="varchar(16)">
                 <constraints nullable="false" />
             </column>
             <column name="amount" type="decimal" remarks="Operation amount">
