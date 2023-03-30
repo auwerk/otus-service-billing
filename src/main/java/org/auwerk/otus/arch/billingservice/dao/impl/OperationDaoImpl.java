@@ -52,7 +52,7 @@ public class OperationDaoImpl implements OperationDao {
     public Uni<UUID> insert(PgPool pool, Operation operation) {
         return pool.preparedQuery(
                 "INSERT INTO operations(id, account_id, related_to, type, amount, comment, created_at) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id")
-                .execute(Tuple.of(List.of(UUID.randomUUID(), operation.getAccountId(), operation.getRelatedTo(),
+                .execute(Tuple.tuple(List.of(UUID.randomUUID(), operation.getAccountId(), operation.getRelatedTo(),
                         operation.getType().name(), operation.getAmount(), operation.getComment(),
                         LocalDateTime.now())))
                 .map(rowSet -> {
