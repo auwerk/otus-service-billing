@@ -16,8 +16,8 @@ import io.restassured.RestAssured;
 import io.smallrye.mutiny.Uni;
 
 @QuarkusTest
-@TestHTTPEndpoint(ManagementResource.class)
-public class ManagementResourceTest {
+@TestHTTPEndpoint(AccountManagementResource.class)
+public class AccountManagementResourceTest {
 
     private static final String USERNAME = "customer";
 

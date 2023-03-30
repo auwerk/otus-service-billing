@@ -15,9 +15,9 @@ import org.auwerk.otus.arch.billingservice.service.BillingService;
 import io.smallrye.mutiny.Uni;
 import lombok.RequiredArgsConstructor;
 
-@Path("/management")
+@Path("/management/account")
 @RequiredArgsConstructor
-public class ManagementResource {
+public class AccountManagementResource {
 
     private final BillingService billingService;
 
