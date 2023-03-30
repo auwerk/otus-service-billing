@@ -36,6 +36,18 @@ public class OperationDaoImpl implements OperationDao {
     }
 
     @Override
+    public Uni<Long> countByRelatedTo(PgPool pool, UUID relatedTo) {
+        return pool.preparedQuery("SELECT COUNT(*) FROM operations WHERE related_to=$1")
+                .execute(Tuple.of(relatedTo))
+                .map(rowSet -> {
+                    if (rowSet.rowCount() != 1) {
+                        throw new DaoException("counting realted operations failed");
+                    }
+                    return rowSet.iterator().next().getLong(0);
+                });
+    }
+
+    @Override
     public Uni<List<Operation>> findByAccountId(PgPool pool, UUID accountId) {
         return pool.preparedQuery("SELECT * FROM operations WHERE account_id=$1")
                 .execute(Tuple.of(accountId))
@@ -51,8 +63,8 @@ public class OperationDaoImpl implements OperationDao {
 
     @Override
     public Uni<UUID> insert(PgPool pool, Operation operation) {
-        Object[] parameters = {UUID.randomUUID(), operation.getAccountId(), operation.getRelatedTo(),
-            operation.getType().name(), operation.getAmount(), operation.getComment(), LocalDateTime.now()};
+        Object[] parameters = { UUID.randomUUID(), operation.getAccountId(), operation.getRelatedTo(),
+                operation.getType().name(), operation.getAmount(), operation.getComment(), LocalDateTime.now() };
 
         return pool.preparedQuery(
                 "INSERT INTO operations(id, account_id, related_to, type, amount, comment, created_at) "

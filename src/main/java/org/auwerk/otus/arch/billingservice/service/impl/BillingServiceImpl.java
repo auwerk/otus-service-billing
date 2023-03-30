@@ -72,11 +72,12 @@ public class BillingServiceImpl implements BillingService {
     @Override
     public Uni<UUID> cancelOperation(UUID operationId, String comment) {
         return pool.withTransaction(conn -> operationDao.findById(pool, operationId)
-                .invoke(operation -> {
-                    if (operation.getRelatedTo() != null) {
-                        throw new OperationAlreadyCanceledException(operation.getId());
-                    }
-                })
+                .call(operation -> operationDao.countByRelatedTo(pool, operation.getId())
+                        .invoke(cnt -> {
+                            if (cnt > 0) {
+                                throw new OperationAlreadyCanceledException(operation.getId());
+                            }
+                        }))
                 .flatMap(operation -> accountDao.findById(pool, operation.getAccountId())
                         .flatMap(account -> {
                             if (!getUserName().equals(account.getUserName())) {

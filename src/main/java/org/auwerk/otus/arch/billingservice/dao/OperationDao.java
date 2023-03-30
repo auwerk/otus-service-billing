@@ -12,6 +12,8 @@ public interface OperationDao {
 
     Uni<Operation> findById(PgPool pool, UUID id);
 
+    Uni<Long> countByRelatedTo(PgPool pool, UUID relatedTo);
+
     Uni<List<Operation>> findByAccountId(PgPool pool, UUID accountId);
 
     Uni<UUID> insert(PgPool pool, Operation operation);

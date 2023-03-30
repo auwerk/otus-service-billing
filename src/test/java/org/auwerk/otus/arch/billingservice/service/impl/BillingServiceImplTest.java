@@ -348,6 +348,8 @@ public class BillingServiceImplTest {
         operation.setRelatedTo(UUID.randomUUID());
         when(operationDao.findById(pool, operation.getId()))
                 .thenReturn(Uni.createFrom().item(operation));
+        when(operationDao.countByRelatedTo(pool, operation.getId()))
+                .thenReturn(Uni.createFrom().item(1L));
         final var subscriber = billingService.cancelOperation(operation.getId(), "")
                 .subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
