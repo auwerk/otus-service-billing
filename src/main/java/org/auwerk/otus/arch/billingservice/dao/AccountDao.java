@@ -17,4 +17,6 @@ public interface AccountDao {
     Uni<UUID> insert(PgPool pool, String userName);
 
     Uni<Void> updateBalanceById(PgPool pool, UUID id, BigDecimal balance);
+
+    Uni<Void> deleteById(PgPool pool, UUID id);
 }

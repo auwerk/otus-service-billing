@@ -17,4 +17,6 @@ public interface OperationDao {
     Uni<List<Operation>> findByAccountId(PgPool pool, UUID accountId);
 
     Uni<UUID> insert(PgPool pool, Operation operation);
+
+    Uni<Void> deleteByAccountId(PgPool pool, UUID accountId);
 }

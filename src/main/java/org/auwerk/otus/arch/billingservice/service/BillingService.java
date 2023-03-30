@@ -19,6 +19,13 @@ public interface BillingService {
     Uni<UUID> createUserAccount(String userName);
 
     /**
+     * Удаление лицевого счёта авторизованного пользователя
+     * 
+     * @return
+     */
+    Uni<Void> deleteUserAccount();
+
+    /**
      * Получение информации о счёте авторизованного пользователя
      * 
      * @param fetchOperations требуется ли выбрать из БД историю операций по счёту

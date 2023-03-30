@@ -71,6 +71,18 @@ public class AccountDaoImpl implements AccountDao {
                 .replaceWithVoid();
     }
 
+    @Override
+    public Uni<Void> deleteById(PgPool pool, UUID id) {
+        return pool.preparedQuery("DELETE FROM accounts WHERE id=$1")
+                .execute(Tuple.of(id))
+                .invoke(rowSet -> {
+                    if (rowSet.rowCount() != 1) {
+                        throw new DaoException("account deletion failed, id=" + id);
+                    }
+                })
+                .replaceWithVoid();
+    }
+
     private static Account mapRow(Row row) {
         return Account.builder()
                 .id(row.getUUID("id"))

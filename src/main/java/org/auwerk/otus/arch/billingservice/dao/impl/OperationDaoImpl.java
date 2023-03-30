@@ -79,6 +79,13 @@ public class OperationDaoImpl implements OperationDao {
                 });
     }
 
+    @Override
+    public Uni<Void> deleteByAccountId(PgPool pool, UUID accountId) {
+        return pool.preparedQuery("DELETE FROM operations WHERE account_id=$1")
+                .execute(Tuple.of(accountId))
+                .replaceWithVoid();
+    }
+
     private static Operation mapRow(Row row) {
         return Operation.builder()
                 .id(row.getUUID("id"))

@@ -101,6 +101,39 @@ public class BillingServiceImplTest {
     }
 
     @Test
+    void deleteUserAccount_success() {
+        // given
+        final var account = buildAccount();
+
+        // when
+        when(accountDao.findByUserName(pool, USERNAME))
+                .thenReturn(Uni.createFrom().item(account));
+        final var subscriber = billingService.deleteUserAccount().subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        subscriber.assertCompleted();
+
+        verify(operationDao, times(1)).deleteByAccountId(pool, ACCOUNT_ID);
+        verify(accountDao, times(1)).deleteById(pool, ACCOUNT_ID);
+    }
+
+    @Test
+    void deleteUserAccount_accountNotFound() {
+        // when
+        when(accountDao.findByUserName(pool, USERNAME))
+                .thenReturn(Uni.createFrom().failure(new NoSuchElementException()));
+        final var subscriber = billingService.deleteUserAccount().subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        subscriber.assertFailedWith(AccountNotFoundException.class);
+
+        verify(operationDao, never()).deleteByAccountId(pool, ACCOUNT_ID);
+        verify(accountDao, never()).deleteById(pool, ACCOUNT_ID);
+    }
+
+    @Test
     void getUserAccount_success() {
         // given
         final var account = buildAccount();

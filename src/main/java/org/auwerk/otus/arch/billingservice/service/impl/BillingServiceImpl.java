@@ -47,6 +47,15 @@ public class BillingServiceImpl implements BillingService {
     }
 
     @Override
+    public Uni<Void> deleteUserAccount() {
+        return pool.withTransaction(conn -> accountDao.findByUserName(pool, getUserName())
+                .flatMap(account -> operationDao.deleteByAccountId(pool, account.getId())
+                        .chain(v -> accountDao.deleteById(pool, account.getId()))))
+                .onFailure(NoSuchElementException.class)
+                .transform(ex -> new AccountNotFoundException());
+    }
+
+    @Override
     public Uni<Account> getUserAccount(boolean fetchOperations) {
         if (fetchOperations) {
             return accountDao.findByUserName(pool, getUserName())
