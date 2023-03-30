@@ -2,6 +2,7 @@ package org.auwerk.otus.arch.billingservice.dao.impl;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -50,11 +51,13 @@ public class OperationDaoImpl implements OperationDao {
 
     @Override
     public Uni<UUID> insert(PgPool pool, Operation operation) {
+        Object[] parameters = {UUID.randomUUID(), operation.getAccountId(), operation.getRelatedTo(),
+            operation.getType().name(), operation.getAmount(), operation.getComment(), LocalDateTime.now()};
+
         return pool.preparedQuery(
-                "INSERT INTO operations(id, account_id, related_to, type, amount, comment, created_at) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id")
-                .execute(Tuple.tuple(List.of(UUID.randomUUID(), operation.getAccountId(), operation.getRelatedTo(),
-                        operation.getType().name(), operation.getAmount(), operation.getComment(),
-                        LocalDateTime.now())))
+                "INSERT INTO operations(id, account_id, related_to, type, amount, comment, created_at) "
+                        + "VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id")
+                .execute(Tuple.tuple(Arrays.asList(parameters)))
                 .map(rowSet -> {
                     final var rowSetIterator = rowSet.iterator();
                     if (!rowSetIterator.hasNext()) {
