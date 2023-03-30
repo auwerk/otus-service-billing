@@ -43,4 +43,10 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="03-add-operation-related-to-column" author="auwerk">
+        <addColumn tableName="operations">
+            <column name="related_to" type="uuid" remarks="Operation this one relates to" />
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

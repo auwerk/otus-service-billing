@@ -25,6 +25,7 @@ import org.auwerk.otus.arch.billingservice.domain.OperationType;
 import org.auwerk.otus.arch.billingservice.exception.AccountAlreadyExistsException;
 import org.auwerk.otus.arch.billingservice.exception.AccountNotFoundException;
 import org.auwerk.otus.arch.billingservice.exception.InsufficentAccountBalanceException;
+import org.auwerk.otus.arch.billingservice.exception.OperationAlreadyCanceledException;
 import org.auwerk.otus.arch.billingservice.exception.OperationExecutedByDifferentUserException;
 import org.auwerk.otus.arch.billingservice.exception.OperationNotFoundException;
 import org.auwerk.otus.arch.billingservice.service.BillingService;
@@ -191,7 +192,7 @@ public class BillingServiceImplTest {
                 .updateBalanceById(pool, account.getId(), targetBalance);
         verify(operationDao, times(1))
                 .insert(eq(pool), argThat(op -> operationType.equals(op.getType())
-                        && account.getId().equals(op.getAccountId())
+                        && account.getId().equals(op.getAccountId()) && op.getRelatedTo() == null
                         && amount.equals(op.getAmount()) && comment.equals(op.getComment())));
     }
 
@@ -251,6 +252,7 @@ public class BillingServiceImplTest {
         verify(operationDao, times(1))
                 .insert(eq(pool), argThat(op -> targetOperationType.equals(op.getType())
                         && account.getId().equals(op.getAccountId())
+                        && operation.getId().equals(op.getRelatedTo())
                         && operation.getAmount().equals(op.getAmount())
                         && comment.equals(op.getComment())));
     }
@@ -327,6 +329,32 @@ public class BillingServiceImplTest {
         // then
         final var failure = (OperationExecutedByDifferentUserException) subscriber
                 .assertFailedWith(OperationExecutedByDifferentUserException.class)
+                .getFailure();
+        assertEquals(operation.getId(), failure.getOperationId());
+
+        verify(accountDao, never())
+                .updateBalanceById(eq(pool), any(UUID.class), any(BigDecimal.class));
+        verify(operationDao, never())
+                .insert(eq(pool), any(Operation.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(OperationType.class)
+    void cancelOperation_operationAlreadyCanceled(OperationType operationType) {
+        // given
+        final var operation = buildOperation(operationType);
+
+        // when
+        operation.setRelatedTo(UUID.randomUUID());
+        when(operationDao.findById(pool, operation.getId()))
+                .thenReturn(Uni.createFrom().item(operation));
+        final var subscriber = billingService.cancelOperation(operation.getId(), "")
+                .subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (OperationAlreadyCanceledException) subscriber
+                .assertFailedWith(OperationAlreadyCanceledException.class)
                 .getFailure();
         assertEquals(operation.getId(), failure.getOperationId());
 

@@ -15,6 +15,7 @@ import org.auwerk.otus.arch.billingservice.api.dto.ExecuteOperationRequestDto;
 import org.auwerk.otus.arch.billingservice.api.dto.OperationResponseDto;
 import org.auwerk.otus.arch.billingservice.exception.AccountNotFoundException;
 import org.auwerk.otus.arch.billingservice.exception.InsufficentAccountBalanceException;
+import org.auwerk.otus.arch.billingservice.exception.OperationAlreadyCanceledException;
 import org.auwerk.otus.arch.billingservice.exception.OperationExecutedByDifferentUserException;
 import org.auwerk.otus.arch.billingservice.exception.OperationNotFoundException;
 import org.auwerk.otus.arch.billingservice.service.BillingService;
@@ -49,6 +50,8 @@ public class OperationResource {
                 .map(cancelOperationId -> Response.ok(new OperationResponseDto(cancelOperationId)).build())
                 .onFailure(OperationNotFoundException.class)
                 .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
+                .onFailure(OperationAlreadyCanceledException.class)
+                .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
                 .onFailure(AccountNotFoundException.class)
                 .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
                 .onFailure(OperationExecutedByDifferentUserException.class)

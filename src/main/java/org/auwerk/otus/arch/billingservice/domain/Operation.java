@@ -12,6 +12,7 @@ import lombok.Data;
 public class Operation {
     private UUID id;
     private UUID accountId;
+    private UUID relatedTo;
     private OperationType type;
     private BigDecimal amount;
     private String comment;

@@ -2,6 +2,7 @@ package org.auwerk.otus.arch.billingservice.service.impl;
 
 import java.math.BigDecimal;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -14,6 +15,7 @@ import org.auwerk.otus.arch.billingservice.domain.OperationType;
 import org.auwerk.otus.arch.billingservice.exception.AccountAlreadyExistsException;
 import org.auwerk.otus.arch.billingservice.exception.AccountNotFoundException;
 import org.auwerk.otus.arch.billingservice.exception.InsufficentAccountBalanceException;
+import org.auwerk.otus.arch.billingservice.exception.OperationAlreadyCanceledException;
 import org.auwerk.otus.arch.billingservice.exception.OperationExecutedByDifferentUserException;
 import org.auwerk.otus.arch.billingservice.exception.OperationNotFoundException;
 import org.auwerk.otus.arch.billingservice.service.BillingService;
@@ -64,22 +66,28 @@ public class BillingServiceImpl implements BillingService {
         return pool.withTransaction(conn -> accountDao.findByUserName(pool, getUserName())
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new AccountNotFoundException())
-                .flatMap(account -> doExecuteOperation(account, type, amount, comment)));
+                .flatMap(account -> doExecuteOperation(account, Optional.empty(), type, amount, comment)));
     }
 
     @Override
     public Uni<UUID> cancelOperation(UUID operationId, String comment) {
         return pool.withTransaction(conn -> operationDao.findById(pool, operationId)
+                .invoke(operation -> {
+                    if (operation.getRelatedTo() != null) {
+                        throw new OperationAlreadyCanceledException(operation.getId());
+                    }
+                })
                 .flatMap(operation -> accountDao.findById(pool, operation.getAccountId())
                         .flatMap(account -> {
                             if (!getUserName().equals(account.getUserName())) {
                                 throw new OperationExecutedByDifferentUserException(operation.getId());
                             }
                             return switch (operation.getType()) {
-                                case CREDIT -> doExecuteOperation(account, OperationType.WITHDRAW,
-                                        operation.getAmount(), comment);
+                                case CREDIT -> doExecuteOperation(account, Optional.of(operation),
+                                        OperationType.WITHDRAW, operation.getAmount(), comment);
                                 case WITHDRAW ->
-                                    doExecuteOperation(account, OperationType.CREDIT, operation.getAmount(), comment);
+                                    doExecuteOperation(account, Optional.of(operation), OperationType.CREDIT,
+                                            operation.getAmount(), comment);
                             };
                         })
                         .onFailure(NoSuchElementException.class)
@@ -88,7 +96,8 @@ public class BillingServiceImpl implements BillingService {
                 .transform(ex -> new OperationNotFoundException(operationId)));
     }
 
-    private Uni<UUID> doExecuteOperation(Account account, OperationType type, BigDecimal amount, String comment) {
+    private Uni<UUID> doExecuteOperation(Account account, Optional<Operation> relatedTo, OperationType type,
+            BigDecimal amount, String comment) {
         final var targetBalance = doCalculations(account.getBalance(), type, amount);
         if (targetBalance.compareTo(BigDecimal.ZERO) < 0) {
             throw new InsufficentAccountBalanceException();
@@ -96,6 +105,7 @@ public class BillingServiceImpl implements BillingService {
         final var operation = Operation.builder()
                 .type(type)
                 .accountId(account.getId())
+                .relatedTo(relatedTo.map(op -> op.getId()).orElse(null))
                 .amount(amount)
                 .comment(comment)
                 .build();

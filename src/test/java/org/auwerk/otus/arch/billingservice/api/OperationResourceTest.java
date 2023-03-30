@@ -11,6 +11,7 @@ import org.auwerk.otus.arch.billingservice.api.dto.ExecuteOperationRequestDto;
 import org.auwerk.otus.arch.billingservice.domain.OperationType;
 import org.auwerk.otus.arch.billingservice.exception.AccountNotFoundException;
 import org.auwerk.otus.arch.billingservice.exception.InsufficentAccountBalanceException;
+import org.auwerk.otus.arch.billingservice.exception.OperationAlreadyCanceledException;
 import org.auwerk.otus.arch.billingservice.exception.OperationExecutedByDifferentUserException;
 import org.auwerk.otus.arch.billingservice.exception.OperationNotFoundException;
 import org.auwerk.otus.arch.billingservice.service.BillingService;
@@ -143,6 +144,24 @@ public class OperationResourceTest extends AbstractAuthenticatedResourceTest {
                 .then()
                 .statusCode(404)
                 .body(Matchers.is("operation not found, id=" + operationId));
+    }
+
+    @Test
+    void cancelOperation_operationAlreadyCanceled() {
+        final var operationId = UUID.randomUUID();
+        final var request = new CancelOperationRequestDto("cancel operation comment");
+
+        Mockito.when(billingService.cancelOperation(operationId, request.getComment()))
+                .thenReturn(Uni.createFrom().failure(new OperationAlreadyCanceledException(operationId)));
+
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .contentType(ContentType.JSON)
+                .body(request)
+                .delete("/{operationId}", operationId)
+                .then()
+                .statusCode(409)
+                .body(Matchers.is("operation already canceled, id=" + operationId));
     }
 
     @Test

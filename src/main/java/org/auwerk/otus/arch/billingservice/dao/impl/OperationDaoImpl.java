@@ -51,9 +51,10 @@ public class OperationDaoImpl implements OperationDao {
     @Override
     public Uni<UUID> insert(PgPool pool, Operation operation) {
         return pool.preparedQuery(
-                "INSERT INTO operations(id, account_id, type, amount, comment, created_at) VALUES($1, $2, $3, $4, $5, $6) RETURNING id")
-                .execute(Tuple.of(UUID.randomUUID(), operation.getAccountId(), operation.getType().name(),
-                        operation.getAmount(), operation.getComment(), LocalDateTime.now()))
+                "INSERT INTO operations(id, account_id, related_to, type, amount, comment, created_at) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id")
+                .execute(Tuple.of(List.of(UUID.randomUUID(), operation.getAccountId(), operation.getRelatedTo(),
+                        operation.getType().name(), operation.getAmount(), operation.getComment(),
+                        LocalDateTime.now())))
                 .map(rowSet -> {
                     final var rowSetIterator = rowSet.iterator();
                     if (!rowSetIterator.hasNext()) {
@@ -67,6 +68,7 @@ public class OperationDaoImpl implements OperationDao {
         return Operation.builder()
                 .id(row.getUUID("id"))
                 .accountId(row.getUUID("account_id"))
+                .relatedTo(row.getUUID("related_to"))
                 .type(OperationType.valueOf(row.getString("type")))
                 .amount(row.getBigDecimal("amount"))
                 .comment(row.getString("comment"))

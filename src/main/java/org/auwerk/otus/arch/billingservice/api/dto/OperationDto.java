@@ -19,6 +19,7 @@ import lombok.Setter;
 @RegisterForReflection
 public class OperationDto {
     private UUID id;
+    private UUID relatedTo;
     private OperationType type;
     private BigDecimal amount;
     private String comment;
