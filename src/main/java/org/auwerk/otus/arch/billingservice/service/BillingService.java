@@ -19,11 +19,12 @@ public interface BillingService {
     Uni<UUID> createUserAccount(String userName);
 
     /**
-     * Удаление лицевого счёта авторизованного пользователя
+     * Удаление лицевого счёта пользователя
      * 
+     * @param userName имя пользователя, чей счёт удаляется
      * @return
      */
-    Uni<Void> deleteUserAccount();
+    Uni<Void> deleteUserAccount(String userName);
 
     /**
      * Получение информации о счёте авторизованного пользователя

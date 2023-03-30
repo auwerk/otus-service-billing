@@ -108,7 +108,7 @@ public class BillingServiceImplTest {
         // when
         when(accountDao.findByUserName(pool, USERNAME))
                 .thenReturn(Uni.createFrom().item(account));
-        final var subscriber = billingService.deleteUserAccount().subscribe()
+        final var subscriber = billingService.deleteUserAccount(USERNAME).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
@@ -123,7 +123,7 @@ public class BillingServiceImplTest {
         // when
         when(accountDao.findByUserName(pool, USERNAME))
                 .thenReturn(Uni.createFrom().failure(new NoSuchElementException()));
-        final var subscriber = billingService.deleteUserAccount().subscribe()
+        final var subscriber = billingService.deleteUserAccount(USERNAME).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
